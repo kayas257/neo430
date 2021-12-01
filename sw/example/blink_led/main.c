@@ -40,7 +40,7 @@
 #include <neo430.h>
 
 // Configuration
-#define BAUD_RATE 19200
+#define BAUD_RATE 9600
 
 
 /* ------------------------------------------------------------
@@ -57,7 +57,8 @@ int main(void) {
   uint16_t i = 0;
   while (1) {
     neo430_gpio_port_set(0x00FF & (i++)); // set output port and increment counter
-    neo430_cpu_delay_ms(200); // wait 200ms
+    neo430_cpu_delay_ms(2000); // wait 200ms
+  neo430_uart_br_print("\nits me Zakir\n");
   }
 
   return 0;

@@ -70,19 +70,19 @@ use neo430.neo430_package.all;
 entity neo430_top is
   generic (
     -- general configuration --
-    CLOCK_SPEED  : natural := 100000000; -- main clock in Hz
-    IMEM_SIZE    : natural := 4*1024; -- internal IMEM size in bytes, max 48kB (default=4kB)
-    DMEM_SIZE    : natural := 2*1024; -- internal DMEM size in bytes, max 12kB (default=2kB)
+    CLOCK_SPEED  : natural := 50000000; -- main clock in Hz
+    IMEM_SIZE    : natural := 1*1024; -- internal IMEM size in bytes, max 48kB (default=4kB)
+    DMEM_SIZE    : natural := 1*1024; -- internal DMEM size in bytes, max 12kB (default=2kB)
     -- additional configuration --
     USER_CODE    : std_ulogic_vector(15 downto 0) := x"0000"; -- custom user code
     -- module configuration --
-    MULDIV_USE   : boolean := true;  -- implement multiplier/divider unit? (default=true)
-    WB32_USE     : boolean := true;  -- implement WB32 unit? (default=true)
-    WDT_USE      : boolean := true;  -- implement WDT? (default=true)
+    MULDIV_USE   : boolean := false;  -- implement multiplier/divider unit? (default=true)
+    WB32_USE     : boolean := false;  -- implement WB32 unit? (default=true)
+    WDT_USE      : boolean := false;  -- implement WDT? (default=true)
     GPIO_USE     : boolean := true;  -- implement GPIO unit? (default=true)
     TIMER_USE    : boolean := true;  -- implement timer? (default=true)
     UART_USE     : boolean := true;  -- implement UART? (default=true)
-    CRC_USE      : boolean := true;  -- implement CRC unit? (default=true)
+    CRC_USE      : boolean := false;  -- implement CRC unit? (default=true)
     CFU_USE      : boolean := false; -- implement custom functions unit? (default=false)
     PWM_USE      : boolean := true;  -- implement PWM controller? (default=true)
     TWI_USE      : boolean := true;  -- implement two wire serial interface? (default=true)
@@ -91,8 +91,8 @@ entity neo430_top is
     EXIRQ_USE    : boolean := true;  -- implement EXIRQ? (default=true)
     FREQ_GEN_USE : boolean := true;  -- implement FREQ_GEN? (default=true)
     -- boot configuration --
-    BOOTLD_USE   : boolean := true;  -- implement and use bootloader? (default=true)
-    IMEM_AS_ROM  : boolean := false  -- implement IMEM as read-only memory? (default=false)
+    BOOTLD_USE   : boolean := false;  -- implement and use bootloader? (default=true)
+    IMEM_AS_ROM  : boolean := true  -- implement IMEM as read-only memory? (default=false)
   );
   port (
     -- global control --
@@ -115,14 +115,15 @@ entity neo430_top is
     twi_sda_io : inout std_logic; -- twi serial data line
     twi_scl_io : inout std_logic; -- twi serial clock line
     -- 32-bit wishbone interface --
-    wb_adr_o   : out std_ulogic_vector(31 downto 0); -- address
-    wb_dat_i   : in  std_ulogic_vector(31 downto 0); -- read data
-    wb_dat_o   : out std_ulogic_vector(31 downto 0); -- write data
-    wb_we_o    : out std_ulogic; -- read/write
-    wb_sel_o   : out std_ulogic_vector(03 downto 0); -- byte enable
-    wb_stb_o   : out std_ulogic; -- strobe
-    wb_cyc_o   : out std_ulogic; -- valid cycle
-    wb_ack_i   : in  std_ulogic; -- transfer acknowledge
+	 
+    --wb_adr_o   : out std_ulogic_vector(31 downto 0); -- address
+    --wb_dat_i   : in  std_ulogic_vector(31 downto 0); -- read data
+    --wb_dat_o   : out std_ulogic_vector(31 downto 0); -- write data
+    --wb_we_o    : out std_ulogic; -- read/write
+    --wb_sel_o   : out std_ulogic_vector(03 downto 0); -- byte enable
+    --wb_stb_o   : out std_ulogic; -- strobe
+    --wb_cyc_o   : out std_ulogic; -- valid cycle
+    --wb_ack_i   : in  std_ulogic; -- transfer acknowledge
     -- external interrupts --
     ext_irq_i  : in  std_ulogic_vector(07 downto 0); -- external interrupt request lines (active HI)
     ext_ack_o  : out std_ulogic_vector(07 downto 0)  -- external interrupt request acknowledges
@@ -130,6 +131,8 @@ entity neo430_top is
 end neo430_top;
 
 architecture neo430_top_rtl of neo430_top is
+
+attribute keep: boolean;
 
   -- generators --
   signal rst_i_sync0    : std_ulogic;
@@ -149,7 +152,7 @@ architecture neo430_top_rtl of neo430_top is
   signal twi_cg_en      : std_ulogic;
   signal cfu_cg_en      : std_ulogic;
   signal freq_gen_cg_en : std_ulogic;
-
+  
   type cpu_bus_t is record
     rd_en : std_ulogic;
     wr_en : std_ulogic_vector(01 downto 0);
@@ -164,7 +167,9 @@ architecture neo430_top_rtl of neo430_top is
   signal io_wr_en : std_ulogic;
   signal io_rd_en : std_ulogic;
 
+
   -- read-back data buses --
+  attribute maxfan: boolean;
   signal rom_rdata       : std_ulogic_vector(15 downto 0);
   signal ram_rdata       : std_ulogic_vector(15 downto 0);
   signal muldiv_rdata    : std_ulogic_vector(15 downto 0);
@@ -183,7 +188,9 @@ architecture neo430_top_rtl of neo430_top is
   signal exirq_rdata     : std_ulogic_vector(15 downto 0);
   signal freq_gen_rdata  : std_ulogic_vector(15 downto 0);
   signal sysconfig_rdata : std_ulogic_vector(15 downto 0);
-
+  signal rdata_test : std_ulogic_vector(15 downto 0);
+  attribute keep of rdata_test: signal is true;
+	  attribute maxfan of cpu_bus: signal is true;
   -- interrupt system --
   signal irq       : std_ulogic_vector(03 downto 0);
   signal timer_irq : std_ulogic;
@@ -281,11 +288,11 @@ begin
   );
 
   -- final CPU read data --
-  cpu_bus.rdata <= rom_rdata or ram_rdata or boot_rdata or muldiv_rdata or
-                   wb_rdata or uart_rdata or spi_rdata or gpio_rdata or freq_gen_rdata or
-                   timer_rdata or wdt_rdata or sysconfig_rdata or crc_rdata or
-                   cfu_rdata or pwm_rdata or twi_rdata or trng_rdata or exirq_rdata;
-
+  cpu_bus.rdata <=  rom_rdata or ram_rdata or boot_rdata or muldiv_rdata or
+                   uart_rdata or spi_rdata or gpio_rdata or freq_gen_rdata or
+                 timer_rdata or wdt_rdata or sysconfig_rdata or crc_rdata or
+                 cfu_rdata or pwm_rdata or twi_rdata or trng_rdata or exirq_rdata;
+--cpu_bus.rdata <= rom_rdata or ram_rdata ;
   -- interrupts: priority assignment --
   irq(0) <= timer_irq;                      -- timer match (highest priority)
   irq(1) <= uart_irq or spi_irq or twi_irq; -- serial IRQ
@@ -375,39 +382,39 @@ begin
 
   -- Wishbone Adapter (WB32) --------------------------------------------------
   -- -----------------------------------------------------------------------------
-  neo430_wb32_if_inst_true:
-  if (WB32_USE = true) generate
-    neo430_wb32_inst: neo430_wb_interface
-    port map (
+ -- neo430_wb32_if_inst_true:
+ -- if (WB32_USE = true) generate
+  --  neo430_wb32_inst: neo430_wb_interface
+  --  port map (
       -- host access --
-      clk_i    => clk_i,            -- global clock line
-      rden_i   => io_rd_en,         -- read enable
-      wren_i   => io_wr_en,         -- write enable
-      addr_i   => cpu_bus.addr,     -- address
-      data_i   => cpu_bus.wdata,    -- data in
-      data_o   => wb_rdata,         -- data out
+   --   clk_i    => clk_i,            -- global clock line
+   --   rden_i   => io_rd_en,         -- read enable
+   --   wren_i   => io_wr_en,         -- write enable
+   --   addr_i   => cpu_bus.addr,     -- address
+   --   data_i   => cpu_bus.wdata,    -- data in
+   --   data_o   => wb_rdata,         -- data out
       -- wishbone interface --
-      wb_adr_o => wb_adr_o,         -- address
-      wb_dat_i => wb_dat_i,         -- read data
-      wb_dat_o => wb_dat_o,         -- write data
-      wb_we_o  => wb_we_o,          -- read/write
-      wb_sel_o => wb_sel_o,         -- byte enable
-      wb_stb_o => wb_stb_o,         -- strobe
-      wb_cyc_o => wb_cyc_o,         -- valid cycle
-      wb_ack_i => wb_ack_i          -- transfer acknowledge
-    );
-  end generate;
+    --  wb_adr_o => wb_adr_o,         -- address
+    --  wb_dat_i => wb_dat_i,         -- read data
+    --  wb_dat_o => wb_dat_o,         -- write data
+    --  wb_we_o  => wb_we_o,          -- read/write
+    --  wb_sel_o => wb_sel_o,         -- byte enable
+    --  wb_stb_o => wb_stb_o,         -- strobe
+    --  wb_cyc_o => wb_cyc_o,         -- valid cycle
+    --  wb_ack_i => wb_ack_i          -- transfer acknowledge
+    --);
+ -- end generate;
 
-  neo430_wb32_if_inst_false:
-  if (WB32_USE = false) generate
-    wb_rdata <= (others => '0');
-    wb_adr_o <= (others => '0');
-    wb_dat_o <= (others => '0');
-    wb_we_o  <= '0';
-    wb_sel_o <= (others => '0');
-    wb_stb_o <= '0';
-    wb_cyc_o <= '0';
-  end generate;
+ -- neo430_wb32_if_inst_false:
+ -- if (WB32_USE = false) generate
+ --   wb_rdata <= (others => '0');
+ --   wb_adr_o <= (others => '0');
+ --   wb_dat_o <= (others => '0');
+ --   wb_we_o  <= '0';
+ --   wb_sel_o <= (others => '0');
+ --   wb_stb_o <= '0';
+ --   wb_cyc_o <= '0';
+ -- end generate;
 
 
   -- Universal Asynchronous Receiver & Transmitter (UART) ---------------------

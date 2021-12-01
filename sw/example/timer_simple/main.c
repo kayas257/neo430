@@ -46,7 +46,7 @@
 // Configuration
 #define BAUD_RATE  19200
 #define BLINK_LED  0 // pin 0 on GPIO.out
-#define BLINK_FREQ 4 // in Hz
+#define BLINK_FREQ 50 // in Hz
 
 // Function prototypes
 void __attribute__((__interrupt__)) timer_irq_handler(void);

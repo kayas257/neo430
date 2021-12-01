@@ -45,7 +45,7 @@ use neo430.neo430_package.all;
 entity neo430_sysconfig is
   generic (
     -- general configuration --
-    CLOCK_SPEED  : natural := 100000000; -- main clock in Hz
+    CLOCK_SPEED  : natural := 50000000; -- main clock in Hz
     IMEM_SIZE    : natural := 4*1024; -- internal IMEM size in bytes
     DMEM_SIZE    : natural := 2*1024; -- internal DMEM size in bytes
     -- additional configuration --

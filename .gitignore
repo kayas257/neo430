@@ -5,7 +5,7 @@
 *.dat
 *.s
 *.out
-
+*.bak
 # no executables
 sw/tools/image_gen/image_gen
 *.exe

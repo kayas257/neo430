@@ -41,7 +41,7 @@ use neo430.neo430_package.all;
 
 entity neo430_dmem is
   generic (
-    DMEM_SIZE : natural := 2*1024 -- internal DMEM size in bytes
+    DMEM_SIZE : natural := 1*1024 -- internal DMEM size in bytes
   );
   port (
     clk_i  : in  std_ulogic; -- global clock line

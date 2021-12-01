@@ -111,6 +111,7 @@ int main(void) {
 
   while(1) {
     neo430_sleep();
+    neo430_sleep();
   }
 
   return 0;
